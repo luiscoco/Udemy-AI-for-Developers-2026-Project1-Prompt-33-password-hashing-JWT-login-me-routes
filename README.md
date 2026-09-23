@@ -1,4 +1,4 @@
-# Prompt C — Backend authentication: how it was built, step by step
+# Backend: password hashing, JWT issuing/verification, login & me routes
 
 This document walks through how **Prompt C** was implemented. That prompt adds password
 hashing, JWT issuing/verification, and the `POST /api/auth/login` and `GET /api/auth/me`
