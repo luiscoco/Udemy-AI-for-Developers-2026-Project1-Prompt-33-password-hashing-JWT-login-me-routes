@@ -1,0 +1,32 @@
+BEGIN TRY
+
+BEGIN TRAN;
+
+-- CreateTable
+CREATE TABLE [dbo].[users] (
+    [id] UNIQUEIDENTIFIER NOT NULL,
+    [email] NVARCHAR(1000) NOT NULL,
+    [passwordHash] NVARCHAR(1000) NOT NULL,
+    [name] NVARCHAR(1000) NOT NULL,
+    [role] VARCHAR(20) NOT NULL,
+    [technicianId] UNIQUEIDENTIFIER,
+    [createdAt] DATETIME2 NOT NULL CONSTRAINT [users_createdAt_df] DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT [users_pkey] PRIMARY KEY CLUSTERED ([id]),
+    CONSTRAINT [users_email_key] UNIQUE NONCLUSTERED ([email])
+);
+
+-- AddForeignKey
+ALTER TABLE [dbo].[users] ADD CONSTRAINT [users_technicianId_fkey] FOREIGN KEY ([technicianId]) REFERENCES [dbo].[technicians]([id]) ON DELETE SET NULL ON UPDATE CASCADE;
+
+COMMIT TRAN;
+
+END TRY
+BEGIN CATCH
+
+IF @@TRANCOUNT > 0
+BEGIN
+    ROLLBACK TRAN;
+END;
+THROW
+
+END CATCH

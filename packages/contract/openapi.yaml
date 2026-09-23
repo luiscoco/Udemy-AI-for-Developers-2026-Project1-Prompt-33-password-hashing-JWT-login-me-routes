@@ -1,0 +1,612 @@
+openapi: 3.0.3
+info:
+  title: Equipment Maintenance Hub API
+  description: >
+    Internal maintenance operations API for tracking equipment work orders
+    through their lifecycle, from initial report through completion.
+  version: 0.1.0
+paths:
+  /api/health:
+    get:
+      operationId: getHealth
+      summary: Check API health
+      tags:
+        - health
+      responses:
+        '200':
+          description: The API is healthy.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required:
+                  - ok
+
+  /api/auth/login:
+    post:
+      operationId: login
+      summary: Log in with email and password
+      description: Exchanges valid credentials for a bearer token and the authenticated user.
+      tags:
+        - auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Credentials were valid; a bearer token was issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: The email or password is incorrect.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/auth/me:
+    get:
+      operationId: getCurrentUser
+      summary: Get the authenticated user
+      tags:
+        - auth
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The user identified by the bearer token.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: The bearer token is missing, invalid or expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/assets:
+    get:
+      operationId: listAssets
+      summary: List assets
+      tags:
+        - assets
+      responses:
+        '200':
+          description: List of assets.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Asset'
+
+  /api/technicians:
+    get:
+      operationId: listTechnicians
+      summary: List technicians
+      tags:
+        - technicians
+      responses:
+        '200':
+          description: List of technicians.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Technician'
+
+  /api/work-orders:
+    get:
+      operationId: listWorkOrders
+      summary: List work orders
+      description: Optionally filter work orders by state and/or priority.
+      tags:
+        - work-orders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: state
+          in: query
+          required: false
+          description: Filter results to work orders in this state.
+          schema:
+            $ref: '#/components/schemas/WorkOrderState'
+        - name: priority
+          in: query
+          required: false
+          description: Filter results to work orders with this priority.
+          schema:
+            $ref: '#/components/schemas/Priority'
+      responses:
+        '200':
+          description: List of work orders matching the filters.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkOrder'
+        '400':
+          description: An invalid state or priority filter was supplied.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: The bearer token is missing, invalid or expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    post:
+      operationId: createWorkOrder
+      summary: Report a new work order
+      tags:
+        - work-orders
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewWorkOrder'
+      responses:
+        '201':
+          description: The work order was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrder'
+        '400':
+          description: The referenced asset does not exist or the payload is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: The bearer token is missing, invalid or expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/work-orders/{id}:
+    get:
+      operationId: getWorkOrder
+      summary: Get a work order by id
+      tags:
+        - work-orders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifier of the work order.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The requested work order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrder'
+        '401':
+          description: The bearer token is missing, invalid or expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: No work order exists with the given id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/work-orders/{id}/assignment:
+    post:
+      operationId: assignWorkOrderTechnician
+      summary: Assign a technician to a work order
+      tags:
+        - work-orders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifier of the work order.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignmentCommand'
+      responses:
+        '200':
+          description: The technician was assigned to the work order.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrder'
+        '401':
+          description: The bearer token is missing, invalid or expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: The work order or technician does not exist.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: Assignment is not allowed because the work order is in a final state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/work-orders/{id}/transitions:
+    post:
+      operationId: transitionWorkOrder
+      summary: Transition a work order to its next lifecycle state
+      tags:
+        - work-orders
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Identifier of the work order.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitionCommand'
+      responses:
+        '200':
+          description: The work order was transitioned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkOrder'
+        '400':
+          description: The requested action is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '401':
+          description: The bearer token is missing, invalid or expired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '404':
+          description: No work order exists with the given id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '409':
+          description: The requested action is not a legal transition from the work order's current state.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+  /api/dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      summary: Get aggregate dashboard summary
+      tags:
+        - dashboard
+      responses:
+        '200':
+          description: Aggregate work order counts for the operations dashboard.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Token issued by POST /api/auth/login, sent in the Authorization header as "Bearer <token>".
+
+  schemas:
+    WorkOrderState:
+      type: string
+      description: >
+        Current stage of a work order in its lifecycle. Transitions are
+        driven by WorkOrderAction commands.
+      enum:
+        - reported
+        - triaged
+        - scheduled
+        - in_progress
+        - completed
+        - cancelled
+
+    WorkOrderAction:
+      type: string
+      description: Command used to transition a work order from one state to another.
+      enum:
+        - triage
+        - schedule
+        - start
+        - complete
+        - cancel
+
+    Priority:
+      type: string
+      description: Urgency level assigned to a work order.
+      enum:
+        - low
+        - medium
+        - high
+        - critical
+
+    Asset:
+      type: object
+      description: A piece of equipment that can be the subject of a work order.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier of the asset.
+        tag:
+          type: string
+          description: Human-readable asset tag printed on the physical equipment.
+        name:
+          type: string
+          description: Descriptive name of the asset.
+        location:
+          type: string
+          description: Physical location of the asset (e.g. building, room, line).
+      required:
+        - id
+        - tag
+        - name
+        - location
+
+    Technician:
+      type: object
+      description: A maintenance technician who can be assigned to work orders.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier of the technician.
+        name:
+          type: string
+          description: Full name of the technician.
+        specialty:
+          type: string
+          description: Primary area of expertise (e.g. electrical, mechanical, HVAC).
+      required:
+        - id
+        - name
+        - specialty
+
+    WorkOrder:
+      type: object
+      description: A maintenance task tracked from report to completion.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier of the work order.
+        reference:
+          type: string
+          description: Human-readable reference code (e.g. WO-2026-00042).
+        assetId:
+          type: string
+          format: uuid
+          description: Identifier of the asset this work order applies to.
+        title:
+          type: string
+          description: Short summary of the maintenance task.
+        description:
+          type: string
+          description: Detailed description of the issue or task.
+        priority:
+          $ref: '#/components/schemas/Priority'
+        state:
+          $ref: '#/components/schemas/WorkOrderState'
+        technicianId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Identifier of the technician assigned to this work order, if any.
+        reportedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the work order was first reported.
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the work order was last updated.
+      required:
+        - id
+        - reference
+        - assetId
+        - title
+        - description
+        - priority
+        - state
+        - technicianId
+        - reportedAt
+        - updatedAt
+
+    NewWorkOrder:
+      type: object
+      description: Payload for reporting a new work order.
+      properties:
+        assetId:
+          type: string
+          format: uuid
+          description: Identifier of the asset this work order applies to.
+        title:
+          type: string
+          description: Short summary of the maintenance task.
+        description:
+          type: string
+          description: Detailed description of the issue or task.
+        priority:
+          $ref: '#/components/schemas/Priority'
+      required:
+        - assetId
+        - title
+        - description
+        - priority
+
+    TransitionCommand:
+      type: object
+      description: Command to move a work order to its next lifecycle state.
+      properties:
+        action:
+          $ref: '#/components/schemas/WorkOrderAction'
+      required:
+        - action
+
+    AssignmentCommand:
+      type: object
+      description: Command to assign a technician to a work order.
+      properties:
+        technicianId:
+          type: string
+          format: uuid
+          description: Identifier of the technician to assign.
+      required:
+        - technicianId
+
+    DashboardSummary:
+      type: object
+      description: Aggregate counts of work orders for the operations dashboard.
+      properties:
+        totalOpen:
+          type: integer
+          description: Total number of work orders not yet completed or cancelled.
+        criticalOpen:
+          type: integer
+          description: Number of open work orders with critical priority.
+        unassigned:
+          type: integer
+          description: Number of open work orders with no technician assigned.
+        byState:
+          type: object
+          description: Count of work orders grouped by state.
+          additionalProperties:
+            type: integer
+      required:
+        - totalOpen
+        - criticalOpen
+        - unassigned
+        - byState
+
+    Role:
+      type: string
+      description: Access level of an authenticated user.
+      enum:
+        - technician
+        - supervisor
+        - admin
+
+    User:
+      type: object
+      description: An authenticated user of the API. Never includes credentials.
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier of the user.
+        email:
+          type: string
+          format: email
+          description: Login email address of the user.
+        name:
+          type: string
+          description: Full name of the user.
+        role:
+          $ref: '#/components/schemas/Role'
+        technicianId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Identifier of the technician profile linked to this user, if any.
+      required:
+        - id
+        - email
+        - name
+        - role
+        - technicianId
+
+    LoginRequest:
+      type: object
+      description: Credentials used to obtain a bearer token.
+      properties:
+        email:
+          type: string
+          format: email
+          description: Login email address.
+        password:
+          type: string
+          description: Plain-text password.
+      required:
+        - email
+        - password
+
+    LoginResponse:
+      type: object
+      description: Result of a successful login.
+      properties:
+        token:
+          type: string
+          description: Bearer token to send in the Authorization header.
+        user:
+          $ref: '#/components/schemas/User'
+      required:
+        - token
+        - user
+
+    ApiError:
+      type: object
+      description: Standard error response shape.
+      properties:
+        message:
+          type: string
+          description: Human-readable error message.
+        details:
+          type: object
+          description: Optional additional error context.
+          additionalProperties: true
+      required:
+        - message

@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model Asset {
+  id       String @id @default(uuid()) @db.UniqueIdentifier
+  tag      String @unique
+  name     String
+  location String
+
+  workOrders WorkOrder[]
+
+  @@map("assets")
+}
+
+model Technician {
+  id        String @id @default(uuid()) @db.UniqueIdentifier
+  name      String
+  specialty String
+
+  workOrders WorkOrder[]
+  users      User[]
+
+  @@map("technicians")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.UniqueIdentifier
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         String   @db.VarChar(20)
+  technicianId String?  @db.UniqueIdentifier
+  createdAt    DateTime @default(now())
+
+  technician Technician? @relation(fields: [technicianId], references: [id])
+
+  @@map("users")
+}
+
+model WorkOrder {
+  id           String   @id @default(uuid()) @db.UniqueIdentifier
+  reference    String   @unique
+  assetId      String   @db.UniqueIdentifier
+  title        String
+  description  String   @db.NVarChar(Max)
+  priority     String   @db.VarChar(20)
+  state        String   @db.VarChar(20)
+  technicianId String?  @db.UniqueIdentifier
+  reportedAt   DateTime
+  updatedAt    DateTime
+
+  asset      Asset       @relation(fields: [assetId], references: [id])
+  technician Technician? @relation(fields: [technicianId], references: [id])
+
+  @@map("work_orders")
+}

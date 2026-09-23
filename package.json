@@ -1,0 +1,27 @@
+{
+  "name": "equipment-maintenance-hub",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "lint": "eslint .",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm run dev --workspace=@equipment-hub/backend\" \"npm run dev --workspace=@equipment-hub/frontend\"",
+    "verify:contract": "node packages/contract/scripts/verify-contract.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "eslint": "^9.39.5",
+    "typescript-eslint": "^8.70.1"
+  },
+  "allowScripts": {
+    "prisma@6.19.3": true,
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true
+  }
+}
